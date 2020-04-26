@@ -9,6 +9,8 @@
 
 int mainLength = 740, mazeLength = 640, length = 64;
 int color = 0x0D1137, colorMaze = 0xE52165;
+int xxxx = 0;
+int yyyy = 1;
 using namespace std;
 
 class Cell{
