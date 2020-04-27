@@ -1,11 +1,12 @@
 # depslib dependency file v1.0
-1587950187 source:d:\c++\drawsdl\main.cpp
+1588015608 source:d:\c++\drawsdl\main.cpp
 	<iostream>
 	<fstream>
 	<string>
 	<cstdio>
 	<SDL.h>
 	<SDL_draw.h>
+	"SDL_ttf.h"
 
 1581838831 c:\sdl\sdl-1.2.15\include\sdl\\sdl.h
 	"SDL_main.h"
@@ -198,6 +199,11 @@
 	"close_code.h"
 
 1581840529 c:\sdl\sdl-1.2.15\include\sdl\\sdl_draw.h
+	"SDL.h"
+	"begin_code.h"
+	"close_code.h"
+
+1581840410 c:\sdl\sdl-1.2.15\include\sdl\\sdl_ttf.h
 	"SDL.h"
 	"begin_code.h"
 	"close_code.h"

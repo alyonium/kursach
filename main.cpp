@@ -4,11 +4,12 @@
 #include <cstdio>
 #include <SDL.h>
 #include <SDL_draw.h>
+#include "SDL_ttf.h"
 
 #define N 6
 
 int mainLength = 740, mazeLength = 640, length = 64, halfLength = 32;
-int colorBackground = 0x0D1137, colorField = 0xE52165;
+int colorBackground = 0x039C7D, colorField = 0xB7D036, colorActive = 0xC91E2C; //фон, поле, персонаж + клетка выхода
 
 using namespace std;
 
@@ -50,7 +51,7 @@ public:
     }
 
     void Final (SDL_Surface *field){
-        Draw_FillRect(field, x + 2, y, length, length, 0x987439);
+        Draw_FillRect(field, x + 2, y, length, length, colorActive);
     }
 };
 
@@ -68,24 +69,70 @@ public:
         Draw_FillCircle(field, this->x, this->y, 20, colorField);
         this->x = x;
         this->y = y;
-        Draw_FillCircle(field, this->x , this->y, 20, 0xffffff);
+        Draw_FillCircle(field, this->x , this->y, 20, colorActive);
     }
 };
 
-struct Current { //хранит индексы расположения в матрице текущей клетки
+struct Current { //хранит индексы расположения текущей клетки в матрице
     int x;
     int y;
 };
 
 typedef struct Current position;
 
+int messageWin(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
+    SDL_Surface *victory;
+    SDL_Surface *text = NULL;
+    SDL_Rect frameVictory;
+    SDL_Rect dest;
+    SDL_Event event;
+    SDL_Color messageColor;
+    TTF_Font *message = TTF_OpenFont("text.ttf", 30);
 
-int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frame_field, Cell (*Maze)[10]){
+    frameVictory.w = 320; frameVictory.h = 100;
+    frameVictory.x = 210; frameVictory.y = 320;
+    victory = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameVictory.w, frameVictory.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
+
+    if (victory == NULL) { //поверхность прямоугольника для сообщения
+        cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
+        atexit(SDL_Quit);
+        return 4;
+    }
+
+    SDL_FillRect(victory, NULL, colorActive);
+    SDL_BlitSurface(victory, NULL, screen, &frameVictory);
+    SDL_Flip(screen);
+
+    if(message){
+        messageColor.r = 183;
+        messageColor.g = 208;
+        messageColor.b = 54;
+         dest.x = 250;
+         dest.y = 352;
+        text = TTF_RenderUTF8_Solid(message,"YOU ARE A WINNER", messageColor); //поверхность текста
+        if(text){
+            Draw_Rect(victory, 0, 0, frameVictory.w, frameVictory.h, 0x000000); //черный контур вокруг сообщения
+            SDL_BlitSurface(victory, NULL, screen, &frameVictory);
+            SDL_BlitSurface(text, NULL, screen, &dest);
+
+            SDL_Flip(screen);
+      }
+    }
+    while(SDL_WaitEvent(&event)){
+        if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)){
+            TTF_CloseFont(message);
+            return 0;
+        }
+    }
+}
+
+
+int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*Maze)[10]){
     SDL_Event event;
     SDL_FillRect(field, NULL, colorField);
-    position CurrentCell;
-    CurrentCell.x = 0;
-    CurrentCell.y = 0;
+    position currentCell;
+    currentCell.x = 0;
+    currentCell.y = 0;
     Maze[9][9].Final(field);
     Character Mur(halfLength, halfLength);
     Mur.Draw(field, halfLength, halfLength);
@@ -96,74 +143,79 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frame_field, Cell (*
         }
     while(SDL_WaitEvent(&event)){
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_DOWN){
-                    if(Maze[CurrentCell.x][CurrentCell.y].bottom != 1){
+                    if(Maze[currentCell.x][currentCell.y].bottom != 1){
                         Mur.Draw(field, Mur.x, Mur.y + length);
-                        CurrentCell.y++;
+                        currentCell.y++;
                     }
                 }
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_UP){
-                    if(Maze[CurrentCell.x][CurrentCell.y].top != 1){
+                    if(Maze[currentCell.x][currentCell.y].top != 1){
                         Mur.Draw(field, Mur.x, Mur.y - length);
-                        CurrentCell.y--;
+                        currentCell.y--;
                     }
                 }
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RIGHT){
-                    if(Maze[CurrentCell.x][CurrentCell.y].right != 1){
+                    if(Maze[currentCell.x][currentCell.y].right != 1){
                         Mur.Draw(field, Mur.x + length, Mur.y);
-                        CurrentCell.x++;
+                        currentCell.x++;
                     }
                 }
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LEFT){
-                    if(Maze[CurrentCell.x][CurrentCell.y].left != 1){
+                    if(Maze[currentCell.x][currentCell.y].left != 1){
                         Mur.Draw(field, Mur.x - length, Mur.y);
-                        CurrentCell.x--;
+                        currentCell.x--;
                     }
+
                 }
+                Draw_Rect(field, 0, 0, frameField->w, frameField->h, 0x000000); //черный контур вокруг поля
+                SDL_BlitSurface(field, NULL, screen, frameField);
+                SDL_Flip(screen);
+
+                if(currentCell.x == 9 && currentCell.y == 9){
+                    return messageWin(screen, frameField, field); //вызываем поверхность с сообщением о победе
+
+                }
+
                 if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
                     return 0;
-            SDL_BlitSurface(field, NULL, screen, frame_field);
-            SDL_Flip(screen);
+
             }
 }
 
 
-
-
 int main(int argc, char** argv ){
-    int point, number = 0;
-    Cell Maze[10][10];
-    SDL_Surface *screen, *maze;
-    SDL_Rect frame_maze;
-    int exit;
+    Cell Maze[10][10]; //матрица расположения клеток
+    SDL_Surface *screen, *maze; //основная поверхность и поверхность лабиринта
+    SDL_Rect frameMaze; //площадь лабиринта
 //считываем данные из файла, в котором описывается расположение стен лабиринта
-   ifstream in("walls.txt");
-    if (in.is_open()) {
-        int count = 0;
-        int temp;
-        while (!in.eof()) { //считаем количество пробелов в файле
-            in >> temp;
-            count++;
+   ifstream infoWall("walls.txt");
+    if (infoWall.is_open()) {
+        int count = 0; //счетчик кол-ва чисел в файле
+        int temp; //временная переменная
+        while (!infoWall.eof()) { //считаем количество пробелов в файле
+            infoWall >> temp; //считываем из файла числа (нам нужно занть только их количество)
+            count++; //увеличиваем счетчик количества чисел
         }
-        in.seekg(0, ios::beg);
-        in.clear();
-        int count_space = 0;
-        char symbol;
-        while (!in.eof()) {
-            in.get(symbol);
-            if (symbol == ' ') count_space++;
-            if (symbol == '\n') break;
-        }
-        in.seekg(0, ios::beg);
-        in.clear();
+        infoWall.seekg(0, ios::beg); //переходим в начало фйла
 
-        int n = count / (count_space + 1);
-        int m = count_space + 1;
-        int **x;
-        x = new int*[n];
-        for (int i = 0; i<n; i++) x[i] = new int[m];
+        int count_space = 0; //количество пробелов в первой строчке равно 0
+        char symbol;
+        while (!infoWall.eof()) { //считываем до конца файла
+            infoWall.get(symbol); //считываем текущий символ
+            if (symbol == ' ') count_space++; //если пробел, увеличиваем счетчик
+            if (symbol == '\n') break; //если конец строки, прерывваем цикл
+        }
+        infoWall.seekg(0, ios::beg); //переходим к началу файла
+
+        int n = count / (count_space + 1); //количество строк
+        int m = count_space + 1; //количество столбцов
+        int **matrix;
+        matrix = new int*[n];
+
+        for (int i = 0; i<n; i++) matrix[i] = new int[m];
         for (int i = 0; i < n; i++)
             for (int j = 0; j < m; j++)
-                in >> x[i][j];
+                infoWall >> matrix[i][j]; //считываем матрицу из файла
 
         int k, z = -1;
         for(int j = 0; j < 10; j++){
@@ -172,15 +224,15 @@ int main(int argc, char** argv ){
                 k = 0;
                 z++;
                 }
-            Cell cell(k * 64, z * 64, x[z][k], x[k + n / 2][z], x[z][k + 1], x[k + n / 2][z + 1]);
-            Maze[i][j] = cell;
+            Cell cell(k * 64, z * 64, matrix[z][k], matrix[k + n / 2][z], matrix[z][k + 1], matrix[k + n / 2][z + 1]);
+            Maze[i][j] = cell; //вписываем клетку в матрицу
             k++;
             }
         }
 
-        for (int i = 0; i<n; i++) delete[] x[i];
-        delete[] x;
-        in.close();
+        for (int i = 0; i<n; i++) delete[] matrix[i];
+        delete[] matrix;
+        infoWall.close(); //закрыли файл
     }
     else {
         cout << "ERROR OPENING FILE";
@@ -199,19 +251,24 @@ int main(int argc, char** argv ){
         return 3;
     }
 //поверхность лабиринта
-    frame_maze.w = frame_maze.h = mazeLength;
-    frame_maze.x = frame_maze.y = 50;
-    maze = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frame_maze.w, frame_maze.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
+    frameMaze.w = frameMaze.h = mazeLength;
+    frameMaze.x = frameMaze.y = 50;
+    maze = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameMaze.w, frameMaze.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
     if (maze == NULL) {
         cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
         atexit(SDL_Quit);
         return 4;
     }
 
+    if (SDLCALL TTF_Init()){
+        cout << "ERROR INIT FONT";
+        return 5;
+    }
+
     SDL_FillRect(screen, NULL, colorBackground);
-    exit = Game(screen, maze, &frame_maze, Maze);
-    if (exit == 0)
+    if (!Game(screen, maze, &frameMaze, Maze))
         SDL_Quit();
+    TTF_Quit();
 
     return 0;
 }
