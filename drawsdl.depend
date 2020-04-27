@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1588015608 source:d:\c++\drawsdl\main.cpp
+1588022338 source:d:\c++\drawsdl\main.cpp
 	<iostream>
 	<fstream>
 	<string>

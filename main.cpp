@@ -1,10 +1,9 @@
 #include <iostream>
 #include <fstream>
-#include <string>
 #include <cstdio>
 #include <SDL.h>
 #include <SDL_draw.h>
-#include "SDL_ttf.h"
+#include <SDL_ttf.h>
 
 #define N 6
 
@@ -37,15 +36,11 @@ public:
     void Wall (SDL_Surface *field){
        if(this->top){
             Draw_FillRect(field, x - 1, y - 1, length + 2, 3, colorBackground);
-        }
-        if(this->bottom){
+        } if(this->bottom){
             Draw_HLine(field, x, y + length, x + length, colorBackground);
-        }
-
-        if(this->left){
+        } if(this->left){
             Draw_FillRect(field, x - 1, y, 3, length + 2, colorBackground);
-        }
-        if(this->right){
+        } if(this->right){
             Draw_VLine(field, x + length, y, y + length, colorBackground);
         }
     }
@@ -84,7 +79,7 @@ int messageWin(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
     SDL_Surface *victory;
     SDL_Surface *text = NULL;
     SDL_Rect frameVictory;
-    SDL_Rect dest;
+    SDL_Rect frameMessage;
     SDL_Event event;
     SDL_Color messageColor;
     TTF_Font *message = TTF_OpenFont("text.ttf", 30);
@@ -107,14 +102,13 @@ int messageWin(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
         messageColor.r = 183;
         messageColor.g = 208;
         messageColor.b = 54;
-         dest.x = 250;
-         dest.y = 352;
+        frameMessage.x = 250;
+        frameMessage.y = 352;
         text = TTF_RenderUTF8_Solid(message,"YOU ARE A WINNER", messageColor); //поверхность текста
         if(text){
             Draw_Rect(victory, 0, 0, frameVictory.w, frameVictory.h, 0x000000); //черный контур вокруг сообщения
             SDL_BlitSurface(victory, NULL, screen, &frameVictory);
-            SDL_BlitSurface(text, NULL, screen, &dest);
-
+            SDL_BlitSurface(text, NULL, screen, &frameMessage);
             SDL_Flip(screen);
       }
     }
@@ -131,7 +125,7 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*M
     SDL_Event event;
     SDL_FillRect(field, NULL, colorField);
     position currentCell;
-    currentCell.x = 0;
+    currentCell.x = 0; //индесы начальной клетки
     currentCell.y = 0;
     Maze[9][9].Final(field);
     Character Mur(halfLength, halfLength);
@@ -142,32 +136,29 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*M
             }
         }
     while(SDL_WaitEvent(&event)){
-                if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_DOWN){
+
+                if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LEFT){ //влево
+                    if(Maze[currentCell.x][currentCell.y].left != 1){
+                        Mur.Draw(field, Mur.x - length, Mur.y);
+                        currentCell.x--;
+                    }
+                } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_UP){ //вверх
+                    if(Maze[currentCell.x][currentCell.y].top != 1){
+                        Mur.Draw(field, Mur.x, Mur.y - length);
+                        currentCell.y--;
+                    }
+                } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RIGHT){ //вправо
+                    if(Maze[currentCell.x][currentCell.y].right != 1){
+                        Mur.Draw(field, Mur.x + length, Mur.y);
+                        currentCell.x++;
+                    }
+                } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_DOWN){ //вниз
                     if(Maze[currentCell.x][currentCell.y].bottom != 1){
                         Mur.Draw(field, Mur.x, Mur.y + length);
                         currentCell.y++;
                     }
                 }
-                if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_UP){
-                    if(Maze[currentCell.x][currentCell.y].top != 1){
-                        Mur.Draw(field, Mur.x, Mur.y - length);
-                        currentCell.y--;
-                    }
-                }
-                if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RIGHT){
-                    if(Maze[currentCell.x][currentCell.y].right != 1){
-                        Mur.Draw(field, Mur.x + length, Mur.y);
-                        currentCell.x++;
-                    }
-                }
-                if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LEFT){
-                    if(Maze[currentCell.x][currentCell.y].left != 1){
-                        Mur.Draw(field, Mur.x - length, Mur.y);
-                        currentCell.x--;
-                    }
-
-                }
-                Draw_Rect(field, 0, 0, frameField->w, frameField->h, 0x000000); //черный контур вокруг поля
+                Draw_Rect(field, 0, 0, frameField->w, frameField->h, 0x000000); //черный контур
                 SDL_BlitSurface(field, NULL, screen, frameField);
                 SDL_Flip(screen);
 
@@ -185,42 +176,43 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*M
 
 int main(int argc, char** argv ){
     Cell Maze[10][10]; //матрица расположения клеток
-    SDL_Surface *screen, *maze; //основная поверхность и поверхность лабиринта
+    SDL_Surface *screen, *maze; //основная поверхность, поверхность лабиринта
     SDL_Rect frameMaze; //площадь лабиринта
 //считываем данные из файла, в котором описывается расположение стен лабиринта
    ifstream infoWall("walls.txt");
     if (infoWall.is_open()) {
         int count = 0; //счетчик кол-ва чисел в файле
-        int temp; //временная переменная
+        int temp;
         while (!infoWall.eof()) { //считаем количество пробелов в файле
-            infoWall >> temp; //считываем из файла числа (нам нужно занть только их количество)
-            count++; //увеличиваем счетчик количества чисел
+            infoWall >> temp; //считываем из файла числа (нам нужно знать только их количество)
+            count++; //увеличиваем счетчик
         }
-        infoWall.seekg(0, ios::beg); //переходим в начало фйла
+        infoWall.seekg(0, ios::beg); //в начало фйла
 
-        int count_space = 0; //количество пробелов в первой строчке равно 0
+        int count_space = 0; //количество пробелов в первой строчке
         char symbol;
         while (!infoWall.eof()) { //считываем до конца файла
             infoWall.get(symbol); //считываем текущий символ
             if (symbol == ' ') count_space++; //если пробел, увеличиваем счетчик
-            if (symbol == '\n') break; //если конец строки, прерывваем цикл
+            if (symbol == '\n') break; //если конец строки, прерывваем
         }
-        infoWall.seekg(0, ios::beg); //переходим к началу файла
+        infoWall.seekg(0, ios::beg); //к началу файла
 
-        int n = count / (count_space + 1); //количество строк
-        int m = count_space + 1; //количество столбцов
-        int **matrix;
+        int n = count / (count_space + 1);
+        int m = count_space + 1;
+        int **matrix; //матрица, в которую мы считываем все наши позиции
         matrix = new int*[n];
 
-        for (int i = 0; i<n; i++) matrix[i] = new int[m];
+        for (int i = 0; i<n; i++)
+            matrix[i] = new int[m];
         for (int i = 0; i < n; i++)
             for (int j = 0; j < m; j++)
-                infoWall >> matrix[i][j]; //считываем матрицу из файла
+                infoWall >> matrix[i][j]; //считывам из файла в матрицу
 
-        int k, z = -1;
-        for(int j = 0; j < 10; j++){
+        int k, z = -1; //индексы
+        for(int j = 0; j < 10; j++){ //формируем новую, квадратную матрицу для хранения клеток
             for (int i = 0; i < 10; i++) {
-            if(i % (n / 2) == 0){
+            if(!i){ //для первого элемента в строке
                 k = 0;
                 z++;
                 }
@@ -232,7 +224,7 @@ int main(int argc, char** argv ){
 
         for (int i = 0; i<n; i++) delete[] matrix[i];
         delete[] matrix;
-        infoWall.close(); //закрыли файл
+        infoWall.close();
     }
     else {
         cout << "ERROR OPENING FILE";
