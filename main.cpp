@@ -7,15 +7,24 @@
 
 #define N 6
 
-int mainLength = 740, mazeLength = 640, length = 64, halfLength = 32;
-int colorBackground = 0x039C7D, colorField = 0xB7D036, colorActive = 0xC91E2C; //фон, поле, персонаж + клетка выхода
+int mainLength = 746, mazeLength = 643, length = 64, halfLength = 32; //прибавили к длинам основного окна и поля по 3, 6 пикселей для  симметрии
+int colorBackground = 0x039C7D, colorField = 0xB7D036, colorActive = 0xC91E2C, colorWall = 0xffffff; //фон, поле, персонаж + клетка выхода
 
 using namespace std;
 
-class Cell{
+class Coordinates{ //базовый
 public:
     int x;
     int y;
+    Coordinates(){
+        x = 0;
+        y = 0;
+    }
+
+};
+
+class Cell : public Coordinates{
+public:
     int left;
     int top;
     int right;
@@ -35,45 +44,49 @@ public:
 
     void Wall (SDL_Surface *field){
        if(this->top){
-            Draw_FillRect(field, x - 1, y - 1, length + 2, 3, colorBackground);
-        } if(this->bottom){
-            Draw_HLine(field, x, y + length, x + length, colorBackground);
-        } if(this->left){
-            Draw_FillRect(field, x - 1, y, 3, length + 2, colorBackground);
-        } if(this->right){
-            Draw_VLine(field, x + length, y, y + length, colorBackground);
+            Draw_FillRect(field, x , y, length + 2, 3, colorWall);
+        }
+
+        if(this->bottom){
+            Draw_FillRect(field, x, y + length , length + 2, 3, colorWall);
+        }
+
+        if(this->left){
+            Draw_FillRect(field, x , y, 3, length + 2, colorWall);
+        }
+
+        if(this->right){
+            Draw_FillRect(field, x + length, y, 3, length + 2, colorWall); //length + 2 чтобы была нормальная стыковка между горизонтальными и вертикальными стенами
         }
     }
 
     void Final (SDL_Surface *field){
-        Draw_FillRect(field, x + 2, y, length, length, colorActive);
+        Draw_FillRect(field, x, y, length, length, colorActive);
+        SDL_Surface *goblet;
+        SDL_Rect frameGoblet;
+        frameGoblet.x = this->x + 6;
+        frameGoblet.y = this->y + 5;
+        frameGoblet.w = 56;
+        frameGoblet.h = 56;
+        goblet = SDL_LoadBMP("goblet (2).bmp");
+        SDL_BlitSurface(goblet, NULL, field, &frameGoblet);
     }
 };
 
-class Character {
+class Character : public Coordinates {
 public:
-   int x;
-   int y;
-
     Character(int x, int y){
         this->x = x;
         this->y = y;
     }
 
-    void Draw (SDL_Surface *field, int x, int y){
+    void Draw (SDL_Surface *field, int x, int y){ //движение персонажа
         Draw_FillCircle(field, this->x, this->y, 20, colorField);
         this->x = x;
         this->y = y;
         Draw_FillCircle(field, this->x , this->y, 20, colorActive);
     }
 };
-
-struct Current { //хранит индексы расположения текущей клетки в матрице
-    int x;
-    int y;
-};
-
-typedef struct Current position;
 
 int messageWin(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
     SDL_Surface *victory;
@@ -124,9 +137,7 @@ int messageWin(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
 int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*Maze)[10]){
     SDL_Event event;
     SDL_FillRect(field, NULL, colorField);
-    position currentCell;
-    currentCell.x = 0; //индесы начальной клетки
-    currentCell.y = 0;
+    Coordinates currentCell;
     Maze[9][9].Final(field);
     Character Mur(halfLength, halfLength);
     Mur.Draw(field, halfLength, halfLength);
@@ -158,7 +169,7 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*M
                         currentCell.y++;
                     }
                 }
-                Draw_Rect(field, 0, 0, frameField->w, frameField->h, 0x000000); //черный контур
+//                Draw_Rect(field, 0, 0, frameField->w, frameField->h, 0x000000); //черный контур
                 SDL_BlitSurface(field, NULL, screen, frameField);
                 SDL_Flip(screen);
 
@@ -175,7 +186,7 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*M
 
 
 int main(int argc, char** argv ){
-    Cell Maze[10][10]; //матрица расположения клеток
+    Cell fieldMaze[10][10]; //матрица расположения клеток
     SDL_Surface *screen, *maze; //основная поверхность, поверхность лабиринта
     SDL_Rect frameMaze; //площадь лабиринта
 //считываем данные из файла, в котором описывается расположение стен лабиринта
@@ -203,24 +214,24 @@ int main(int argc, char** argv ){
         int **matrix; //матрица, в которую мы считываем все наши позиции
         matrix = new int*[n];
 
-        for (int i = 0; i<n; i++)
+        for (int i = 0; i < n; i++)
             matrix[i] = new int[m];
         for (int i = 0; i < n; i++)
             for (int j = 0; j < m; j++)
                 infoWall >> matrix[i][j]; //считывам из файла в матрицу
 
         int k, z = -1; //индексы
-        for(int j = 0; j < 10; j++){ //формируем новую, квадратную матрицу для хранения клеток
-            for (int i = 0; i < 10; i++) {
-            if(!i){ //для первого элемента в строке
+            for (int i = 0; i < (m - 1) * (m - 1); i++){
+                if(i % (m - 1) == 0){
                 k = 0;
                 z++;
                 }
-            Cell cell(k * 64, z * 64, matrix[z][k], matrix[k + n / 2][z], matrix[z][k + 1], matrix[k + n / 2][z + 1]);
-            Maze[i][j] = cell; //вписываем клетку в матрицу
-            k++;
+                Cell cell(k * 64, z * 64, matrix[z][k], matrix[k + n / 2][z], matrix[z][k + 1], matrix[k + n / 2][z + 1]);
+                fieldMaze[k][z] = cell; //вписываем клетку в матрицу
+                k++;
             }
-        }
+
+
 
         for (int i = 0; i<n; i++) delete[] matrix[i];
         delete[] matrix;
@@ -244,7 +255,7 @@ int main(int argc, char** argv ){
     }
 //поверхность лабиринта
     frameMaze.w = frameMaze.h = mazeLength;
-    frameMaze.x = frameMaze.y = 50;
+    frameMaze.x = frameMaze.y = 53;
     maze = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameMaze.w, frameMaze.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
     if (maze == NULL) {
         cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
@@ -258,7 +269,7 @@ int main(int argc, char** argv ){
     }
 
     SDL_FillRect(screen, NULL, colorBackground);
-    if (!Game(screen, maze, &frameMaze, Maze))
+    if (!Game(screen, maze, &frameMaze, fieldMaze))
         SDL_Quit();
     TTF_Quit();
 
