@@ -61,7 +61,7 @@ public:
     }
 
     void Final (SDL_Surface *field){
-        Draw_FillRect(field, x, y, length, length, colorActive);
+        Draw_FillRect(field, x, y, length, length, colorActive); //картинка не во всю площадь клетки, поэтому прорисовываем тем же цветом заранее
         SDL_Surface *goblet;
         SDL_Rect frameGoblet;
         frameGoblet.x = this->x + 6;
@@ -80,11 +80,15 @@ public:
         this->y = y;
     }
 
-    void Draw (SDL_Surface *field, int x, int y){ //движение персонажа
-        Draw_FillCircle(field, this->x, this->y, 20, colorField);
+    void Draw (SDL_Surface *field, SDL_Surface *harry, SDL_Rect *frameHarry, int x, int y){ //движение персонажа переименуй
+        SDL_FillRect (harry, NULL, colorField); //перекрасить по координатам рамки
+        SDL_BlitSurface(harry, NULL, field, frameHarry);
         this->x = x;
         this->y = y;
-        Draw_FillCircle(field, this->x , this->y, 20, colorActive);
+        frameHarry->x = x;
+        frameHarry->y = y;
+        harry = SDL_LoadBMP("harry.bmp");
+        SDL_BlitSurface(harry, NULL, field, frameHarry);
     }
 };
 
@@ -139,8 +143,20 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*M
     SDL_FillRect(field, NULL, colorField);
     Coordinates currentCell;
     Maze[9][9].Final(field);
-    Character Mur(halfLength, halfLength);
-    Mur.Draw(field, halfLength, halfLength);
+//    Character Mur(halfLength, halfLength);
+//    Mur.Draw(field, halfLength, halfLength);
+    Character Mur(3, 3); //сделай в конструкторе присваивание 0 при создании по умолчанию и не передавай ниче
+
+    SDL_Surface *harry;
+    SDL_Rect frameHarry;
+    harry = SDL_LoadBMP("harry.bmp");
+    frameHarry.x = 5;
+    frameHarry.y = 4;
+    frameHarry.w = 58;
+    frameHarry.h = 58;
+    SDL_BlitSurface(harry, NULL, field, &frameHarry);
+
+
         for (int j = 0; j < 10; j++){
             for (int i = 0; i < 10; i++){
                 Maze[i][j].Wall(field);
@@ -150,26 +166,26 @@ int Game(SDL_Surface *screen, SDL_Surface *field, SDL_Rect *frameField, Cell (*M
 
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LEFT){ //влево
                     if(Maze[currentCell.x][currentCell.y].left != 1){
-                        Mur.Draw(field, Mur.x - length, Mur.y);
+                        Mur.Draw(field,harry, &frameHarry, Mur.x - length, Mur.y);
                         currentCell.x--;
                     }
                 } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_UP){ //вверх
                     if(Maze[currentCell.x][currentCell.y].top != 1){
-                        Mur.Draw(field, Mur.x, Mur.y - length);
+                        Mur.Draw(field, harry, &frameHarry, Mur.x, Mur.y - length);
                         currentCell.y--;
                     }
                 } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RIGHT){ //вправо
                     if(Maze[currentCell.x][currentCell.y].right != 1){
-                        Mur.Draw(field, Mur.x + length, Mur.y);
+                        Mur.Draw(field, harry, &frameHarry, Mur.x + length, Mur.y);
                         currentCell.x++;
                     }
                 } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_DOWN){ //вниз
                     if(Maze[currentCell.x][currentCell.y].bottom != 1){
-                        Mur.Draw(field, Mur.x, Mur.y + length);
+                        Mur.Draw(field, harry, &frameHarry, Mur.x, Mur.y + length);
                         currentCell.y++;
                     }
                 }
-//                Draw_Rect(field, 0, 0, frameField->w, frameField->h, 0x000000); //черный контур
+                Draw_Rect(field, 0, 0, frameField->w, frameField->h, 0x000000); //черный контур
                 SDL_BlitSurface(field, NULL, screen, frameField);
                 SDL_Flip(screen);
 
@@ -269,6 +285,7 @@ int main(int argc, char** argv ){
     }
 
     SDL_FillRect(screen, NULL, colorBackground);
+//    screen = SDL_LoadBMP("background.bmp");
     if (!Game(screen, maze, &frameMaze, fieldMaze))
         SDL_Quit();
     TTF_Quit();
