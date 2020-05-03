@@ -291,22 +291,22 @@ int Menu(SDL_Surface *screen){
 
     TTF_Font *font = font = TTF_OpenFont("text.ttf", 30);
 
-//    SDL_Surface *menu;
-//    SDL_Rect frameMenu;
-//    frameMenu.x = 187;
-//    frameMenu.y = 103;
-//    frameMenu.w = 372;
-//    frameMenu.h = 543;
-//
-//    menu = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameMenu.w, frameMenu.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
-//    if (menu == NULL) { //поверхность пр€моугольника дл€ сообщени€
-//        cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
-//        atexit(SDL_Quit);
-//        return 4;
-//    }
-//
-//    SDL_FillRect(menu, NULL, colorActive);
-//    SDL_BlitSurface(menu, NULL, screen, &frameMenu);
+    SDL_Surface *menu;
+    SDL_Rect frameMenu;
+    frameMenu.x = 187;
+    frameMenu.y = 153;
+    frameMenu.w = 372;
+    frameMenu.h = 443;
+
+    menu = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameMenu.w, frameMenu.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
+    if (menu == NULL) { //поверхность пр€моугольника дл€ сообщени€
+        cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
+        atexit(SDL_Quit);
+        return 4;
+    }
+
+    SDL_FillRect(menu, NULL, colorActive);
+    SDL_BlitSurface(menu, NULL, screen, &frameMenu);
 
     int x, y;
     const int NUMMENU = 2;
