@@ -7,9 +7,9 @@
 
 #define N 6
 
-int mainLength = 746, mazeLength = 643, length = 64; //прибавили к длинам основного окна и поля по 3, 6 пикселей для  симметрии
+int mainLength = 746, mazeLength = 643, length = 64; //прибавили к длинам основного окна и поля по 3, 6 пикселей для симметрии
 int colorField = 0xA0A0C0, colorActive = 0xE0A0C0, colorWall = 0x802080; //поле, клетка выхода, cтены
-static int counter = 0;
+static int counter = 0; //счетчик для меню
 
 using namespace std;
 
@@ -20,10 +20,8 @@ public:
    int x;
    int y;
     Coordinates(){
-        x = 0;
-        y = 0;
+        x = y = 0;
     }
-
 };
 
 class Cell : public Coordinates{
@@ -46,36 +44,33 @@ public:
     }
 
     void Wall (SDL_Surface *field){
-       if(this->top){
+       if(top){
             Draw_FillRect(field, x , y, length + 2, 3, colorWall);
         }
 
-        if(this->bottom){
+        if(bottom){
             Draw_FillRect(field, x, y + length , length + 2, 3, colorWall);
         }
 
-        if(this->left){
+        if(left){
             Draw_FillRect(field, x , y, 3, length + 2, colorWall);
         }
 
-        if(this->right){
-            Draw_FillRect(field, x + length, y, 3, length + 2, colorWall); //length + 2 чтобы была нормальная стыковка между горизонтальными и вертикальными стенами
+        if(right){
+            Draw_FillRect(field, x + length, y, 3, length + 2, colorWall); //length + 2 для стыковки между горизонтальными и вертикальными стенами
         }
     }
 
-    void Final (SDL_Surface *field){
+    void finalCell (SDL_Surface *field){
         Draw_FillRect(field, x, y, length, length, colorActive); //картинка не во всю площадь клетки, поэтому прорисовываем тем же цветом заранее
         SDL_Surface *scepter;
         SDL_Rect frameScepter;
-        frameScepter.x = this->x + 6;
-        frameScepter.y = this->y + 5;
-        frameScepter.w = 56;
-        frameScepter.h = 56;
+        frameScepter.x = x + 6;
+        frameScepter.y = y + 5;
+        frameScepter.w = frameScepter.h = 56;
         scepter = SDL_LoadBMP("scepter.bmp");
         SDL_BlitSurface(scepter, NULL, field, &frameScepter);
     }
-
-
 };
 
 class Character : public Coordinates {
@@ -85,64 +80,60 @@ public:
         this->y = y;
     }
 
-    void Draw (SDL_Surface *field, SDL_Surface *sailor, SDL_Rect *frameSailor, int x, int y){ //движение персонажа переименуй
-        SDL_FillRect (sailor, NULL, colorField); //перекрасить по координатам рамки
-        SDL_BlitSurface(sailor, NULL, field, frameSailor);
-        this->x = x;
-        this->y = y;
-        frameSailor->x = x;
-        frameSailor->y = y;
-        sailor = SDL_LoadBMP("sailor.bmp");
+    void Move(SDL_Surface *field, SDL_Surface *sailor, SDL_Rect *frameSailor, int x, int y){ //движение персонажа переименуй
+        SDL_FillRect (field, frameSailor, colorField);
+        frameSailor->x = this->x = x;
+        frameSailor->y = this->y = y;
         SDL_BlitSurface(sailor, NULL, field, frameSailor);
     }
 };
 
 
 int readFile(Cell (&fieldMaze)[10][10]){  //считываем данные из файла, в котором описывается расположение стен лабиринта
-    ifstream infoWall("walls.txt");
-    if (infoWall.is_open()) {
-        int count = 0; //счетчик кол-ва чисел в файле
+    ifstream Walls("walls.txt");
+    if (Walls.is_open()) {
+        int count = 0;
         int temp;
-        while (!infoWall.eof()) { //считаем количество пробелов в файле
-            infoWall >> temp; //считываем из файла числа (нам нужно знать только их количество)
-            count++; //увеличиваем счетчик
+        while (!Walls.eof()) { //считаем количество пробелов в файле
+            Walls >> temp;
+            count++;
         }
-        infoWall.seekg(0, ios::beg); //в начало фйла
+        Walls.seekg(0, ios::beg);
 
-        int count_space = 0; //количество пробелов в первой строчке
+        int countSpace = 0;
         char symbol;
-        while (!infoWall.eof()) { //считываем до конца файла
-            infoWall.get(symbol); //считываем текущий символ
-            if (symbol == ' ') count_space++; //если пробел, увеличиваем счетчик
-            if (symbol == '\n') break; //если конец строки, прерывваем
+        while (!Walls.eof()) {
+            Walls.get(symbol);
+            if (symbol == ' ') countSpace++; //если пробел - увеличиваем счетчик
+            if (symbol == '\n') break;
         }
-        infoWall.seekg(0, ios::beg); //к началу файла
+        Walls.seekg(0, ios::beg);
 
-        int n = count / (count_space + 1);
-        int m = count_space + 1;
-        int **matrix; //матрица, в которую мы считываем все наши позиции
-        matrix = new int*[n];
+        int n = count / (countSpace + 1);
+        int m = countSpace + 1;
+        int **Matrix;
+        Matrix = new int*[n];
 
         for (int i = 0; i < n; i++)
-            matrix[i] = new int[m];
+            Matrix[i] = new int[m];
         for (int i = 0; i < n; i++)
             for (int j = 0; j < m; j++)
-                infoWall >> matrix[i][j]; //считывам из файла в матрицу
+                Walls >> Matrix[i][j];
 
-        int k, z = -1; //индексы
-            for (int i = 0; i < (m - 1) * (m - 1); i++){
-                if(i % (m - 1) == 0){
+        int k, z = -1;
+            for (int i = 0; i < (n / 2) * (n / 2); i++){
+                if(i % (n / 2) == 0){
                     k = 0;
                     z++;
                 }
-                Cell cell(k * 64, z * 64, matrix[z][k], matrix[k + n / 2][z], matrix[z][k + 1], matrix[k + n / 2][z + 1]);
+                Cell cell(k * 64, z * 64, Matrix[z][k], Matrix[k + n / 2][z], Matrix[z][k + 1], Matrix[k + n / 2][z + 1]);
                 fieldMaze[k][z] = cell; //вписываем клетку в матрицу
                 k++;
             }
 
-        for (int i = 0; i<n; i++) delete[] matrix[i];
-        delete[] matrix;
-        infoWall.close();
+        for (int i = 0; i < n; i++) delete[] Matrix[i];
+        delete[] Matrix;
+        Walls.close();
     }
     else {
         return 1;
@@ -150,7 +141,21 @@ int readFile(Cell (&fieldMaze)[10][10]){  //считываем данные из файла, в котором
     return 0;
 }
 
-int Win(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
+int Win(SDL_Surface *screen){
+    SDL_Surface *win;
+    SDL_Rect frameWin;
+    frameWin.x = frameWin.y = 0;
+    frameWin.w = frameWin.h = mainLength;
+    win = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameWin.w, frameWin.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
+    if (win == NULL) {
+        cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
+        atexit(SDL_Quit);
+        return 4;
+    }
+
+    win = SDL_LoadBMP("sailorwin.bmp");
+    SDL_BlitSurface(win, NULL, screen, &frameWin);
+
     SDL_Surface *rect;
     SDL_Surface *text = NULL;
     SDL_Rect frameRect;
@@ -158,6 +163,8 @@ int Win(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
     SDL_Event event;
     SDL_Color messageColor;
     TTF_Font *message = TTF_OpenFont("text.ttf", 30);
+
+
 
     frameRect.w = 320; frameRect.h = 100;
     frameRect.x = 210; frameRect.y = 320;
@@ -185,11 +192,18 @@ int Win(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
             SDL_BlitSurface(text, NULL, screen, &frameMessage);
             SDL_Flip(screen);
       }
+    } else {
+        cout << "ERROR OPENING FONT";
+        return 5;
     }
 
     while(SDL_WaitEvent(&event)){
         if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)){
             TTF_CloseFont(message);
+            SDL_FreeSurface(win);
+            SDL_FreeSurface(rect);
+            SDL_FreeSurface(text);
+            SDL_FreeSurface(screen);
             return 0;
         }
     }
@@ -198,7 +212,7 @@ int Win(SDL_Surface *screen, SDL_Rect *frameField, SDL_Surface *field){
 int Game(SDL_Surface *screen){
 
     Cell Maze[10][10];  //матрица расположения клеток
-    if(readFile(Maze)){ //функция чтения файла
+    if(readFile(Maze)){
         cout << "ERROR OPENING FILE";
         return 1;
     }
@@ -213,13 +227,13 @@ int Game(SDL_Surface *screen){
         atexit(SDL_Quit);
         return 4;
     }
+    SDL_FillRect(field, NULL, colorField);
 
     SDL_Event event;
-    SDL_FillRect(field, NULL, colorField);
     Coordinates currentCell;
-    Maze[9][9].Final(field);
+    Maze[9][9].finalCell(field);
 
-    Character Moon(3, 3);
+    Character SailorMoon(3, 3);
 
     SDL_Surface *sailor;
     SDL_Rect frameSailor;
@@ -231,26 +245,27 @@ int Game(SDL_Surface *screen){
         for (int j = 0; j < 10; j++)
             for (int i = 0; i < 10; i++)
                 Maze[i][j].Wall(field);
+
     while(SDL_WaitEvent(&event)){
 
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LEFT){ //влево
                     if(Maze[currentCell.x][currentCell.y].left != 1){
-                        Moon.Draw(field, sailor, &frameSailor, Moon.x - length, Moon.y);
+                        SailorMoon.Move(field, sailor, &frameSailor, SailorMoon.x - length, SailorMoon.y);
                         currentCell.x--;
                     }
                 } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_UP){ //вверх
                     if(Maze[currentCell.x][currentCell.y].top != 1){
-                        Moon.Draw(field, sailor, &frameSailor, Moon.x, Moon.y - length);
+                        SailorMoon.Move(field, sailor, &frameSailor, SailorMoon.x, SailorMoon.y - length);
                         currentCell.y--;
                     }
                 } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RIGHT){ //вправо
                     if(Maze[currentCell.x][currentCell.y].right != 1){
-                        Moon.Draw(field, sailor, &frameSailor, Moon.x + length, Moon.y);
+                        SailorMoon.Move(field, sailor, &frameSailor, SailorMoon.x + length, SailorMoon.y);
                         currentCell.x++;
                     }
                 } if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_DOWN){ //вниз
                     if(Maze[currentCell.x][currentCell.y].bottom != 1){
-                        Moon.Draw(field, sailor, &frameSailor, Moon.x, Moon.y + length);
+                        SailorMoon.Move(field, sailor, &frameSailor, SailorMoon.x, SailorMoon.y + length);
                         currentCell.y++;
                     }
                 }
@@ -259,28 +274,14 @@ int Game(SDL_Surface *screen){
                 SDL_Flip(screen);
 
                 if(currentCell.x == 9 && currentCell.y == 9){
-                            SDL_Surface *win;
-                            SDL_Rect frameWin;
-                            frameWin.x = frameWin.y = 0;
-                            frameWin.w = frameWin.h = mainLength;
-                            win = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameWin.w, frameWin.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
-
-                            if (win == NULL) {
-                                cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
-                                atexit(SDL_Quit);
-                                return 4;
-                            }
-
-                            win = SDL_LoadBMP("sailorwin.bmp");
-                            SDL_BlitSurface(win, NULL, screen, &frameWin);
-
-                            return Win(screen, &frameField, field); //вызываем поверхность с сообщением о победе
+                    SDL_FreeSurface(sailor);
+                    SDL_FreeSurface(field);
+                    return Win(screen); //вызываем поверхность с сообщением о победе
                 }
 
-                if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE){
+                if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
                     if(Menu(screen) != 3)
                         return 0;
-                }
 
                 if (event.type == SDL_QUIT)
                     return 0;
@@ -308,103 +309,116 @@ int Menu(SDL_Surface *screen){
     SDL_FillRect(menu, NULL, colorActive);
     SDL_BlitSurface(menu, NULL, screen, &frameMenu);
 
+    SDL_Event event;
+
     int x, y;
-    const int NUMMENU = 2;
-    const char *items[NUMMENU] = {"PLAY", "EXIT"};
-    SDL_Surface *choise[NUMMENU];
-    bool select[NUMMENU] = {false, false};
-    SDL_Color color[2] = {{255, 255, 255},
-                          {64,   32,   128}};
+    char *items[2] = {"PLAY", "EXIT"};
+    int current[2] = {0, 0};
+    SDL_Surface *choise[2];
+    SDL_Rect spot[2];
+    SDL_Color color[2];
+
+    color[0].r = 255; color[0].g = 255; color[0].b = 255;
+    color[1].r = 64; color[1].g = 32; color[1].b = 128;
 
     choise[0] = TTF_RenderText_Solid(font, items[0], color[0]);
     choise[1] = TTF_RenderText_Solid(font, items[1], color[0]);
-    SDL_Rect pos[NUMMENU];
-
-    pos[0].x = screen->clip_rect.w/2 - choise[0]->clip_rect.w/2;
-    pos[0].y = screen->clip_rect.h/2 - choise[0]->clip_rect.h;
-    pos[1].x = screen->clip_rect.w/2 - choise[0]->clip_rect.w/2;
-    pos[1].y = screen->clip_rect.h/2 + choise[0]->clip_rect.h;
 
 
-    SDL_Event event;
+    spot[0].x = screen->clip_rect.w/2 - choise[0]->clip_rect.w/2;
+    spot[0].y = screen->clip_rect.h/2 - choise[0]->clip_rect.h;
+    spot[1].x = screen->clip_rect.w/2 - choise[0]->clip_rect.w/2;
+    spot[1].y = screen->clip_rect.h/2 + choise[0]->clip_rect.h;
+
     while (1) {
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
-                case SDL_QUIT: //крестик
-                    SDL_FreeSurface(choise[0]);
-                    SDL_FreeSurface(choise[1]);
-                    return 1;
-
                 case SDL_MOUSEMOTION:
                     x = event.motion.x;
                     y = event.motion.y;
-                    for (int i = 0; i < NUMMENU; i++) {
-
-                        if (x >= pos[i].x && x <= pos[i].x + pos[i].w &&
-                            y >= pos[i].y && y <= pos[i].y + pos[i].h) {
-                            if (!select[i]) {
-                                select[i] = true;
+                    for (int i = 0; i < 2; i++)
+                        if (x >= spot[i].x && x <= spot[i].x + spot[i].w && y >= spot[i].y && y <= spot[i].y + spot[i].h){
+                            if (!current[i]) {
+                                current[i] = 1;
                                 SDL_FreeSurface(choise[i]);
                                 choise[i] = TTF_RenderText_Solid(font, items[i], color[1]);
                             }
-                        } else if (select[i]) {
-                            select[i] = false;
+                        } else if (current[i]) {
+                            current[i] = 0;
                             SDL_FreeSurface(choise[i]);
                             choise[i] = TTF_RenderText_Solid(font, items[i], color[0]);
                         }
-
-                    }
                     break;
 
                 case SDL_MOUSEBUTTONDOWN:
-
                     x = event.button.x;
                     y = event.button.y;
-                    for (int i = 0; i < NUMMENU; i += 1) {
-                        if (x >= pos[i].x && x <= pos[i].x + pos[i].w &&
-                            y >= pos[i].y && y <= pos[i].y + pos[i].h) {
-                            if (i == 0) {
-
-                                if(!counter){ //если меню открыли не первый раз, надо продолжить с последней позиции
-                                    ++counter;
-                                    if(!Game(screen)){ //cработает только когда сломается
+                    for (int i = 0; i < 2; i++)
+                        if (x >= spot[i].x && x <= spot[i].x + spot[i].w && y >= spot[i].y && y <= spot[i].y + spot[i].h) {
+                            if (!i) {
+                                if(!counter){ //если меню открыли не первый раз, надо продолжить движение с последней позиции
+                                    ++counter; //для этого здесь ставим счетчик static, если больше 0 - значит не надо запускать Game еще раз
+                                    if(!Game(screen))
                                         return 0;
-                                    }
                                 } else {
-                                    SDL_FreeSurface(choise[0]);
-                                    SDL_FreeSurface(choise[1]);
+                                      for (int i = 0; i < 2; i++)
+                                         SDL_FreeSurface(choise[i]);
+                                    SDL_FreeSurface(menu);
                                     return 3;
                                 }
-
                             } else {
-                                SDL_FreeSurface(choise[0]);
-                                SDL_FreeSurface(choise[1]);
-                                return i;
+                                 for (int i = 0; i < 2; i++)
+                                    SDL_FreeSurface(choise[i]);
+                                SDL_FreeSurface(menu);
+                                return 0;
                             }
                         }
-                    }
                     break;
 
                 case SDL_KEYDOWN:
-                    if (event.key.keysym.sym == SDLK_ESCAPE) {
-                        SDL_FreeSurface(choise[0]);
-                        SDL_FreeSurface(choise[1]);
-                        return 0;
+                    if (event.key.keysym.sym == SDLK_ESCAPE) { //при первом запуске - обеспечивает выход из игры, при запуске в процессе игры - возвращает к процессу
+                          for (int i = 0; i < 2; i++)
+                            SDL_FreeSurface(choise[i]);
+                        SDL_FreeSurface(menu);
+                        return 3;
                     }
+
+                case SDL_QUIT:
+                    for (int i = 0; i < 2; i++)
+                        SDL_FreeSurface(choise[i]);
+                    SDL_FreeSurface(menu);
+                    return 1;
             }
         }
-
-        for (int i = 0; i < NUMMENU; i += 1) {
-            SDL_BlitSurface(choise[i], NULL, screen, &pos[i]);
+        for (int i = 0; i < 2; i++) {
+            SDL_BlitSurface(choise[i], NULL, screen, &spot[i]);
             SDL_Flip(screen);
         }
     }
 }
 
+int Saver(SDL_Surface *screen){
+SDL_Surface *saver;
+    SDL_Rect frameSaver;
+    frameSaver.x = frameSaver.y = 0;
+    frameSaver.w = frameSaver.h = mainLength;
+    saver = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameSaver.w, frameSaver.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
+    if (saver == NULL) {
+        cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
+        atexit(SDL_Quit);
+        return 1;
+    }
 
-int main(int argc, char** argv ){
+    saver = SDL_LoadBMP("saver.bmp");
+    SDL_BlitSurface(saver, NULL, screen, &frameSaver);
+    SDL_Flip(screen);
+    SDL_Delay(1000);
+    SDL_FreeSurface(saver);
+    return 0;
+}
 
-    SDL_Surface *screen; //основная поверхность
+int main(int argc, char** argv){
+    SDL_Surface *screen;
     if (SDL_Init(SDL_INIT_EVERYTHING)) {
         cout << "ERROR SDL INIT: %s\n" << SDL_GetError();
         return 2;
@@ -417,13 +431,16 @@ int main(int argc, char** argv ){
         return 3;
     }
 
+    if(Saver(screen))
+        return 4;
+
     SDL_Surface *background;
     SDL_Rect frameBackground;
     frameBackground.x = frameBackground.y = 0;
     frameBackground.w = frameBackground.h = mainLength;
     background = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_DOUBLEBUF, frameBackground.w, frameBackground.h, 32, screen -> format -> Rmask, screen -> format -> Gmask, screen -> format -> Bmask, screen -> format -> Amask);
 
-    if (background == NULL) {
+    if (background == NULL) { //поверхность с фоном
         cout << "SDL CREATE RGB SURFACE FAILED: %s\n" << SDL_GetError();
         atexit(SDL_Quit);
         return 4;
@@ -431,7 +448,6 @@ int main(int argc, char** argv ){
 
     background = SDL_LoadBMP("fon.bmp");
     SDL_BlitSurface(background, NULL, screen, &frameBackground);
-
 
     if (SDLCALL TTF_Init()){
         cout << "ERROR INIT FONT";
